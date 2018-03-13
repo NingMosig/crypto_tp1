@@ -1,1 +1,5 @@
-# Cryptology lab 1 read me
+### Cryptology lab 1
+# How to use:
+```
+make
+```
