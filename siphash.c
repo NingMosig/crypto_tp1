@@ -19,7 +19,7 @@ uint8_t m2[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
 unsigned mlen;
 
 
-void sipround() {
+void sip_round() {
     // para
     v[0] += v[1];
     v[1] = ROT(v[1], 13);
@@ -41,7 +41,7 @@ void sipround() {
 }
 
 
-uint64_t siphash_2_4(uint64_t k[2], uint8_t *m, unsigned mlen) {
+uint64_t sip_hash_2_4(uint64_t k[2], uint8_t *m, unsigned mlen) {
     uint64_t result;
     uint8_t w = (mlen + 1)%8 ? (mlen + 1)/8 + 1 : (mlen + 1) / 8;
     uint64_t words[w];
@@ -49,64 +49,81 @@ uint64_t siphash_2_4(uint64_t k[2], uint8_t *m, unsigned mlen) {
     int j;
 
     // initialization
-    printf("init:\n");
+    //printf("init:\n");
     for (i = 0; i<4; i++) {
         v[i] = k[i%2] ^ init[i];
-        printf("v[%i] = %p\n", i, v[i]);
+        //printf("v[%i] = %p\n", i, v[i]);
     }
 
     // compression
-    printf("compression:\n");
+    //printf("compression:\n");
     for (i = 0; i<w-1; i++) {
         words[i] = 0; // needed ? memset instead ?
         for (j = 0; j<8; j++) { // each word is 8 bytes long
             words[i] += ((uint64_t) m[8*i+j] << 8*j);
         }
-        printf("w1=%p", words[0]);
+        //printf("w1=%p", words[0]);
         v[3] = v[3] ^ words[i];
-        printf("w1v3 %p", v[3]);
+        //printf("w1v3 %p", v[3]);
         // c siprounds
         for (int k = 0; k<c; k++) {
-            sipround();
+            sip_round();
         }
-        printf("v[0] = %p\n", v[0]);
-        printf("v[1] = %p\n", v[1]);
-        printf("v[2] = %p\n", v[2]);
-        printf("v[3] = %p\n", v[3]);
+        //printf("v[0] = %p\n", v[0]);
+        //printf("v[1] = %p\n", v[1]);
+        //printf("v[2] = %p\n", v[2]);
+        //printf("v[3] = %p\n", v[3]);
         v[0] = v[0] ^ words[i];
     }
-    printf("first message block v[3] = %p\n", v[3]);
-    printf("v[0] = %p\n", v[0]);
-    printf("v[1] = %p\n", v[1]);
-    printf("v[2] = %p\n", v[2]);
-    printf("v[3] = %p\n", v[3]);
+    //printf("first message block v[3] = %p\n", v[3]);
+    //printf("v[0] = %p\n", v[0]);
+    //printf("v[1] = %p\n", v[1]);
+    //printf("v[2] = %p\n", v[2]);
+    //printf("v[3] = %p\n", v[3]);
     words[w-1] = 0;
     for (j = 0; j<(mlen%8); j++) {
         words[w-1] += ((uint64_t) m[8*(w-1)+j] << 8*j);
     }
     // the last cell of words is filled here:
     words[w-1] += ((uint64_t) mlen%256) << 56;
-    printf("words[w-1] = %p\n", words[w-1]);
+    //printf("words[w-1] = %p\n", words[w-1]);
     v[3] = v[3] ^ words[w-1];
     // c siprounds
     for (i = 0; i<c; i++) {
-        sipround();
+        sip_round();
     }
     v[0] = v[0] ^ words[w-1];
 
     // Finalization
     v[2] = v[2] ^ 0xff;
-    printf("v[0] = %p\n", v[0]);
-    printf("v[1] = %p\n", v[1]);
-    printf("v[2] = %p\n", v[2]);
-    printf("v[3] = %p\n", v[3]);
+    //printf("v[0] = %p\n", v[0]);
+    //printf("v[1] = %p\n", v[1]);
+    //printf("v[2] = %p\n", v[2]);
+    //printf("v[3] = %p\n", v[3]);
     // d siprounds
     for (i = 0; i<d; i++) {
-        sipround();
+        sip_round();
     }
 
     result = v[0] ^ v[1] ^ v [2] ^ v[3];
 
+    return result;
+}
+
+uint32_t sip_hash_fix32(uint32_t k, uint32_t m) {
+    uint64_t kp[2] = {0, (uint64_t) k};
+    uint8_t *mp;
+    unsigned mplen = 4;
+
+    for (int i = 0; i<4; i++) {
+        mp[i] = (uint8_t) m>>(i*8); // TODO double check this
+    }
+
+    return (uint32_t) sip_hash_2_4(kp, mp, mplen);
+}
+
+uint64_t coll_search(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
+    uint64_t result;
     return result;
 }
 
@@ -119,7 +136,7 @@ void main(int *argc, char **argv) {
     // k[0] = 0;
     // k[1] = 0;
 
-    printf("siphash_2_4(k, m, mlen) = %p\n", siphash_2_4(k, m2, mlen));
+    //printf("siphash_2_4(k, m, mlen) = %p\n", sip_hash_2_4(k, m2, mlen));
 
     return;
 }
