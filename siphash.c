@@ -3,8 +3,10 @@
 #include <stdlib.h>
 
 #include <stdbool.h>
+#include <time.h>
 #include <omp.h>
 
+#define RAND_MAX (2<<32 - 1)
 #define PARALLEL 1
 #define ROT(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64-(b))))
 
@@ -126,13 +128,15 @@ uint64_t coll_search(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
 
     uint32_t max_expected_size = 1<<16-1;
     uint32_t *bon_array = calloc(max_expected_size, sizeof(uint32_t));
-    uint32_t m = 0;
+    srand(time(NULL));
+    uint32_t m = rand();
     uint32_t result = sip_hash_fix32(k, m);
 
     while (!array_search(bon_array, id_collision, result)) {
+        bon_array[id_collision] = result;
         id_collision++;
         printf("%i\n", id_collision);
-        m++;
+        m = rand();
         result = sip_hash_fix32(k, m);
     }
 
