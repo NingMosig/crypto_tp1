@@ -104,19 +104,19 @@ uint32_t sip_hash_fix32(uint32_t k, uint32_t m) {
 
 bool array_search(uint32_t *array, uint32_t len, uint32_t value) {
     bool found = false;
-    register int i;
+    register int id;
 
 #if PARALLEL
-    #pragma omp parallel for schedule(static) num_threads(8) shared(array, len, value) private(i) reduction(||:found)
+    #pragma omp parallel for schedule(static) num_threads(8) shared(array, len, value) private(id) reduction(||:found)
 #endif
-    for (i=0; i<len; i++) {
-        found = found || (array[i] == value);
+    for (id=0; id<len; id++) {
+        found = found || (array[id] == value);
     }
 
     return found;
 }
 
-uint64_t coll_search(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
+uint32_t coll_search(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
     uint32_t id_collision = 0;
     // TODO we can reduce the size of this array sqrt (BParadoxe)
     uint32_t max_expected_size = 1<<32-1;
@@ -167,11 +167,38 @@ void main(int argc, char **argv) {
     } else if (atoi(argv[1]) == 4) {
 
         uint32_t key = rand();
+        uint32_t nb_iterations;
+        double starttime, endtime;
 
         printf("Starting brute force search of collision with a random key = %p...\n", key);
-        printf("after %i iterations!\n", coll_search(key, sip_hash_fix32));
+
+        starttime = clock();
+        nb_iterations = coll_search(key, sip_hash_fix32);
+        endtime = clock();
+
+        printf("after %i iterations! (done in %fs.)\n", nb_iterations, (endtime-starttime));
+
+    } else if (atoi(argv[1]) == 5) {
+
+        for (int i=0; i<100; i++) {
+
+            uint32_t key = rand();
+            uint32_t nb_iterations;
+            double starttime, endtime;
+
+            printf("(%u) Starting brute force search of collision with a random key = %p...\n", i, key);
+
+            starttime = clock();
+            nb_iterations = coll_search(key, sip_hash_fix32);
+            endtime = clock();
+
+            printf("after %i iterations! (done in %fs.)\n", nb_iterations, (endtime-starttime));
+
+        }
 
     }
+
+    // TODO add the time to the printf
 
     exit(0);
 }
