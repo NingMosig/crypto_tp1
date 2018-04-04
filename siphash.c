@@ -6,7 +6,8 @@
 #include <time.h>
 #include <omp.h>
 
-#define RAND_MAX (2<<32 - 1)
+// already defined with this value:
+// #define RAND_MAX (2<<32 - 1)
 #define PARALLEL 1
 #define ROT(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64-(b))))
 
@@ -67,7 +68,7 @@ uint64_t sip_hash_2_4(uint64_t k[2], uint8_t *m, unsigned mlen) {
     for (j = 0; j<(mlen%8); j++) {
         words[w-1] += ((uint64_t) m[8*(w-1)+j] << 8*j);
     }
-    // the last cell of words is filled here:
+    // the last cell of words is filled here: TODO shift plutôt que modulo
     words[w-1] += ((uint64_t) mlen%256) << 56;
     v[3] = v[3] ^ words[w-1];
     // c siprounds
@@ -118,7 +119,6 @@ bool array_search(uint32_t *array, uint32_t len, uint32_t value) {
 
 uint32_t coll_search(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
     uint32_t id_collision = 0;
-    // TODO we can reduce the size of this array sqrt (BParadoxe)
     uint32_t max_expected_size = 1<<32-1;
     uint32_t *bon_array = calloc(max_expected_size, sizeof(uint32_t));
     uint32_t m = 0;
@@ -137,6 +137,35 @@ uint32_t coll_search(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
     free(bon_array);
 
     return id_collision;
+}
+
+uint32_t coll_search2(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
+    uint32_t id_collision = 0;
+    uint32_t max_expected_size = (uint32_t) -1;
+    bool *bon_array = calloc(max_expected_size, sizeof(bool));
+    uint32_t m = 0;
+    uint32_t result = sip_hash_fix32(k, m);
+
+    while (bon_array[result] == false) {
+        bon_array[result] = true;
+        id_collision++;
+        // fprintf(stderr, "id_collision: %i\n", id_collision);
+        m++;
+        result = sip_hash_fix32(k, m);
+    }
+
+    printf("Collision found: %p ", result);
+
+    free(bon_array);
+
+    return id_collision;
+}
+
+uint32_t coll_search3(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
+    uint32_t id_collision = 0;
+    uint32_t max_expected_size = (uint32_t) -1;
+    bool *hash_table = calloc(1<<16, sizeof(void *));
+    // TODO hash_table
 }
 
 void main(int argc, char **argv) {
@@ -168,15 +197,16 @@ void main(int argc, char **argv) {
 
         uint32_t key = rand();
         uint32_t nb_iterations;
-        double starttime, endtime;
+        // double starttime, endtime;
 
         printf("Starting brute force search of collision with a random key = %p...\n", key);
 
-        starttime = clock();
-        nb_iterations = coll_search(key, sip_hash_fix32);
-        endtime = clock();
+        // starttime = clock();
+        nb_iterations = coll_search2(key, sip_hash_fix32);
+        // endtime = clock();
 
-        printf("after %i iterations! (done in %fs.)\n", nb_iterations, (endtime-starttime));
+        printf("after %i tries!\n", nb_iterations);
+        // printf("after %i iterations! (done in %fs.)\n", nb_iterations, (endtime-starttime));
 
     } else if (atoi(argv[1]) == 5) {
 
@@ -184,15 +214,16 @@ void main(int argc, char **argv) {
 
             uint32_t key = rand();
             uint32_t nb_iterations;
-            double starttime, endtime;
+            // double starttime, endtime;
 
             printf("(%u) Starting brute force search of collision with a random key = %p...\n", i, key);
 
-            starttime = clock();
+            // starttime = clock();
             nb_iterations = coll_search(key, sip_hash_fix32);
-            endtime = clock();
+            // endtime = clock();
 
-            printf("after %i iterations! (done in %fs.)\n", nb_iterations, (endtime-starttime));
+            printf("after %i tries!\n", nb_iterations);
+            // printf("after %i iterations! (done in %fs.)\n", nb_iterations, (endtime-starttime));
 
         }
 
