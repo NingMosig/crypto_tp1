@@ -118,15 +118,13 @@ bool array_search(uint32_t *array, uint32_t len, uint32_t value) {
 }
 
 uint32_t coll_search(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
-    uint32_t id_collision = 0;
     uint32_t max_expected_size = 1<<32-1;
     uint32_t *bon_array = calloc(max_expected_size, sizeof(uint32_t));
     uint32_t m = 0;
     uint32_t result = sip_hash_fix32(k, m);
 
-    while (!array_search(bon_array, id_collision, result)) {
-        bon_array[id_collision] = result;
-        id_collision++;
+    while (!array_search(bon_array, m, result)) {
+        bon_array[m] = result;
         // printf("id_collision: %i\n", id_collision);
         m++;
         result = sip_hash_fix32(k, m);
@@ -136,11 +134,10 @@ uint32_t coll_search(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
 
     free(bon_array);
 
-    return id_collision;
+    return m;
 }
 
 uint32_t coll_search2(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
-    uint32_t id_collision = 0;
     uint32_t max_expected_size = (uint32_t) -1;
     bool *bon_array = calloc(max_expected_size, sizeof(bool));
     uint32_t m = 0;
@@ -148,7 +145,6 @@ uint32_t coll_search2(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
 
     while (bon_array[result] == false) {
         bon_array[result] = true;
-        id_collision++;
         // fprintf(stderr, "id_collision: %i\n", id_collision);
         m++;
         result = sip_hash_fix32(k, m);
@@ -158,20 +154,56 @@ uint32_t coll_search2(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
 
     free(bon_array);
 
-    return id_collision;
+    return m;
+}
+
+bool search_hashtable(bool** table, uint32_t value) {
+    uint16_t hash1 = (uint16_t) (value >> 16);
+    uint16_t hash2 = (uint16_t) ((value << 16) >> 16);
+
+    // printf("value = %0x, (%0x, %0x)\n", value, hash1, hash2);
+
+    if (table[hash1] == NULL) {
+        // bool new_array[1<<16] = {false};
+        bool *new_array = calloc(1<<16, sizeof(bool));
+        table[hash1] = new_array;
+        table[hash1][hash2] = true;
+
+        return false;
+    } else {
+        bool found = table[hash1][hash2];
+        table[hash1][hash2] = true;
+
+        return found;
+    }
 }
 
 uint32_t coll_search3(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
-    uint32_t id_collision = 0;
-    uint32_t max_expected_size = (uint32_t) -1;
-    bool *hash_table = calloc(1<<16, sizeof(void *));
-    // TODO hash_table
+    bool** hash_table = calloc(1<<16, sizeof(void *));
+    uint32_t m = 0;
+    uint32_t result = sip_hash_fix32(k, m);
+
+    while (!search_hashtable(hash_table, result)) {
+        m++;
+        result = sip_hash_fix32(k, m);
+        // printf("%u\n", m);
+    }
+
+    // free everything
+    for (int i=0; i<1<<16; i++) {
+        if (hash_table[i]) {
+            free(hash_table[i]);
+        }
+    }
+    free(hash_table);
+
+    return m;
 }
 
 void main(int argc, char **argv) {
 
     if (argc != 2) {
-        printf("Usage: %s {1, 4}\n 1 -> question 1: run sip_hash_2_4 on given examples\n 4 -> question 4: run coll_search\n", argv[0]);
+        printf("Usage: %s {1, 4, 42, 5}\n 1 -> question 1: run sip_hash_2_4 on given examples\n 4 -> question 4: run coll_search\n 42 -> question 4: but with only one big array to be \n\tas fast as possible (requires a lot of memory)\n 5 -> question 5: statistics\n", argv[0]);
         exit(1);
     }
 
@@ -199,7 +231,22 @@ void main(int argc, char **argv) {
         uint32_t nb_iterations;
         // double starttime, endtime;
 
-        printf("Starting brute force search of collision with a random key = %p...\n", key);
+        printf("Starting search of collision with a random key = %p...\n", key);
+
+        // starttime = clock();
+        nb_iterations = coll_search3(key, sip_hash_fix32);
+        // endtime = clock();
+
+        printf("after %i tries!\n", nb_iterations);
+        // printf("after %i iterations! (done in %fs.)\n", nb_iterations, (endtime-starttime));
+
+    } else if (atoi(argv[1]) == 42) {
+
+        uint32_t key = rand();
+        uint32_t nb_iterations;
+        // double starttime, endtime;
+
+        printf("Starting search of collision with a random key = %p...\n", key);
 
         // starttime = clock();
         nb_iterations = coll_search2(key, sip_hash_fix32);
@@ -210,26 +257,30 @@ void main(int argc, char **argv) {
 
     } else if (atoi(argv[1]) == 5) {
 
-        for (int i=0; i<100; i++) {
+        uint32_t minimum = (uint32_t) -1;
+        uint32_t maximum = 0;
+        uint32_t sum = 0;
+        uint32_t nb_iterations;
+        uint32_t key = rand();
 
-            uint32_t key = rand();
-            uint32_t nb_iterations;
-            // double starttime, endtime;
+        for (int i=0; i<1000; i++) {
+            key = rand();
+            nb_iterations = 0;
 
-            printf("(%u) Starting brute force search of collision with a random key = %p...\n", i, key);
+            nb_iterations = coll_search3(key, sip_hash_fix32);
+            sum += nb_iterations;
 
-            // starttime = clock();
-            nb_iterations = coll_search(key, sip_hash_fix32);
-            // endtime = clock();
-
-            printf("after %i tries!\n", nb_iterations);
-            // printf("after %i iterations! (done in %fs.)\n", nb_iterations, (endtime-starttime));
-
+            if (minimum > nb_iterations) {
+                minimum = nb_iterations;
+            }
+            if (maximum < nb_iterations) {
+                maximum = nb_iterations;
+            }
         }
 
+        printf("Done.\n Min = %u, Max = %u, Avg = %u\n", minimum, maximum, sum/1000);
+        printf("2^16 = %u\n", 1<<16);
     }
-
-    // TODO add the time to the printf
 
     exit(0);
 }
