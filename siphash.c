@@ -181,11 +181,11 @@ bool search_hashtable(bool** table, uint32_t value) {
 uint32_t coll_search3(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
     bool** hash_table = calloc(1<<16, sizeof(void *));
     uint32_t m = 0;
-    uint32_t result = sip_hash_fix32(k, m);
+    uint32_t result = (*fun)(k, m);
 
     while (!search_hashtable(hash_table, result)) {
         m++;
-        result = sip_hash_fix32(k, m);
+        result = (*fun)(k, m);
         // printf("%u\n", m);
     }
 
