@@ -103,40 +103,6 @@ uint32_t sip_hash_fix32(uint32_t k, uint32_t m) {
     return (uint32_t) sip_hash_2_4(kp, mp, mplen);
 }
 
-bool array_search(uint32_t *array, uint32_t len, uint32_t value) {
-    bool found = false;
-    register int id;
-
-#if PARALLEL
-    #pragma omp parallel for schedule(static) num_threads(8) shared(array, len, value) private(id) reduction(||:found)
-#endif
-    for (id=0; id<len; id++) {
-        found = found || (array[id] == value);
-    }
-
-    return found;
-}
-
-uint32_t coll_search(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
-    uint32_t max_expected_size = 1<<32-1;
-    uint32_t *bon_array = calloc(max_expected_size, sizeof(uint32_t));
-    uint32_t m = 0;
-    uint32_t result = sip_hash_fix32(k, m);
-
-    while (!array_search(bon_array, m, result)) {
-        bon_array[m] = result;
-        // printf("id_collision: %i\n", id_collision);
-        m++;
-        result = sip_hash_fix32(k, m);
-    }
-
-    printf("Collision found: %p ", result);
-
-    free(bon_array);
-
-    return m;
-}
-
 uint32_t coll_search2(uint32_t k, uint32_t (*fun)(uint32_t, uint32_t)) {
     uint32_t max_expected_size = (uint32_t) -1;
     bool *bon_array = calloc(max_expected_size, sizeof(bool));
